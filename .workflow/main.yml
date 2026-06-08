@@ -1,0 +1,87 @@
+name: SML_MLOps
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  DATA_PATH: "sampah-daur-ulang"
+  EPOCHS: "5"
+  LEARNING_RATE: "0.001"
+  BATCH_SIZE: "32"
+  PIP_DEFAULT_TIMEOUT: "1000"
+  PIP_RETRIES: "5"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python 3.12.7
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12.7"
+      
+      - name: Check Env
+        run: |
+          echo "DATA_PATH=$DATA_PATH"
+          echo "EPOCHS=$EPOCHS"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mlflow tensorflow numpy Pillow scikit-learn matplotlib kaggle
+
+      - name: Setup Kaggle
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          mkdir -p ~/.kaggle
+          echo '{"username":"'$KAGGLE_USERNAME'","key":"'$KAGGLE_KEY'"}' > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
+
+      - name: Run mlflow project
+        env:
+          MLFLOW_TRACKING_URI: file://${{ github.workspace }}/mlruns
+        run: |
+          mlflow run 3-Workflow-CI/MLProject --env-manager=local \
+            -P data_path=$DATA_PATH \
+            -P epochs=$EPOCHS \
+            -P learning_rate=$LEARNING_RATE \
+            -P batch_size=$BATCH_SIZE
+      
+      - name: Get latest MLflow run_id
+        env:
+          MLFLOW_TRACKING_URI: file://${{ github.workspace }}/mlruns
+        run: |
+          # Ekstrak RUN_ID secara akurat menggunakan Python API MLflow
+          RUN_ID=$(python -c "import mlflow; runs = mlflow.search_runs(experiment_ids=['0'], order_by=['start_time DESC']); print(runs.iloc[0].run_id)")
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+          echo "Latest run_id: $RUN_ID"
+          
+      - name: Build Docker Model
+        env:
+          MLFLOW_TRACKING_URI: file://${{ github.workspace }}/mlruns
+        run: |
+          mlflow models build-docker --model-uri "runs:/${{ env.RUN_ID }}/model" --name "sampahclassifier"
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: Tag Docker Image
+        run: |
+          docker tag sampahclassifier ${{ secrets.DOCKER_HUB_USERNAME }}/sampahclassifier:latest
+
+      - name: Push Docker Image
+        run: |
+          docker push ${{ secrets.DOCKER_HUB_USERNAME }}/sampahclassifier:latest

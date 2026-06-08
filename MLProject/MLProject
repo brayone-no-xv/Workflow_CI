@@ -1,0 +1,12 @@
+name: SML_System_MuhammadRahman
+
+conda_env: conda.yaml
+
+entry_points:
+  main:
+    parameters:
+      data_path: {type: string, default: "sampah-daur-ulang"}
+      epochs: {type: int, default: 10}
+      learning_rate: {type: float, default: 0.001}
+      batch_size: {type: int, default: 32}
+    command: "python modelling.py --data_path {data_path} --epochs {epochs} --learning_rate {learning_rate} --batch_size {batch_size}"
