@@ -216,16 +216,8 @@ def main():
     model, base_model = build_model(num_classes, args.learning_rate)
 
     with mlflow.start_run():
-        # Manual logging — parameters
-        mlflow.log_param("architecture", "Sequential_MobileNetV2")
-        mlflow.log_param("learning_rate", args.learning_rate)
-        mlflow.log_param("batch_size", args.batch_size)
-        mlflow.log_param("epochs", args.epochs)
-        mlflow.log_param("num_classes", num_classes)
-        mlflow.log_param("class_names", str(class_names))
-        mlflow.log_param("optimizer", "Adam")
-        mlflow.log_param("img_size", str(IMG_SIZE))
-        mlflow.log_param("split_ratio", "70/15/15")
+        # Mengaktifkan automatic logging sesuai standar Kriteria 2
+        mlflow.autolog()
 
         # Phase 1: Head training
         callbacks = [
@@ -247,27 +239,8 @@ def main():
         )
         h2 = model.fit(train_ds, validation_data=val_ds, epochs=args.epochs, callbacks=callbacks)
 
-        # Manual logging — metrics per epoch
-        combined_loss = h1.history["loss"] + h2.history["loss"]
-        combined_acc = h1.history["accuracy"] + h2.history["accuracy"]
-        combined_vloss = h1.history["val_loss"] + h2.history["val_loss"]
-        combined_vacc = h1.history["val_accuracy"] + h2.history["val_accuracy"]
-
-        for i in range(len(combined_loss)):
-            mlflow.log_metric("train_loss", combined_loss[i], step=i)
-            mlflow.log_metric("train_accuracy", combined_acc[i], step=i)
-            mlflow.log_metric("val_loss", combined_vloss[i], step=i)
-            mlflow.log_metric("val_accuracy", combined_vacc[i], step=i)
-
-        # Test evaluation
+        # Evaluasi akhir
         test_loss, test_acc = model.evaluate(test_ds, verbose=1)
-        mlflow.log_metric("test_accuracy", test_acc)
-        mlflow.log_metric("test_loss", test_loss)
-        mlflow.log_metric("best_val_accuracy", max(combined_vacc))
-
-        # Log model artifact
-        mlflow.tensorflow.log_model(model, artifact_path="model")
-
         print(f"\nTest Accuracy: {test_acc:.4f} | Test Loss: {test_loss:.4f}")
 
 
