@@ -15,6 +15,7 @@ env:
   BATCH_SIZE: "32"
   PIP_DEFAULT_TIMEOUT: "1000"
   PIP_RETRIES: "5"
+  MLFLOW_ALLOW_FILE_STORE: "true"
 
 jobs:
   build:
