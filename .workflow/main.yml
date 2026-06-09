@@ -51,7 +51,7 @@ jobs:
         env:
           MLFLOW_TRACKING_URI: file://${{ github.workspace }}/mlruns
         run: |
-          mlflow run 3-Workflow-CI/MLProject --env-manager=local \
+          mlflow run MLProject --env-manager=local \
             -P data_path=$DATA_PATH \
             -P epochs=$EPOCHS \
             -P learning_rate=$LEARNING_RATE \
